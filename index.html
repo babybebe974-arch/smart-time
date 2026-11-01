@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Smart Time</title>
+<meta name="theme-color" content="#c9cccd">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Share+Tech+Mono&display=swap">
+<style>
+/* Façade d'appareil en aluminium brossé : touches en relief, voyants LED, écran LCD */
+:root{
+  --alu-hi:#eceeee; --alu:#d4d7d8; --alu-lo:#b9bdbf; --well:#c6c9cb;
+  --ink:#2b2f32; --ink-soft:#5f666a; --edge:#8e9497;
+  --led-off:#7f8588; --teal:#29e3c4; --amber:#ffb238; --green:#5be37a; --red:#e3362c; --red-lo:#a81f17;
+  --lcd:#1d2624; --lcd-ink:#3ff2d0; --lcd-dim:#2f4a45;
+  --font:"Archivo",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"Share Tech Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{
+  background:
+    repeating-linear-gradient(90deg,rgba(255,255,255,.035) 0 1px,transparent 1px 3px),
+    linear-gradient(180deg,#e2e4e5,#c3c6c8 70%,#b8bcbe);
+  background-attachment:fixed;
+  color:var(--ink);font:15px/1.45 var(--font);
+  padding:env(safe-area-inset-top,0) 0 calc(96px + env(safe-area-inset-bottom,0));
+  -webkit-tap-highlight-color:transparent;
+}
+.wrap{max-width:540px;margin:0 auto;padding-block:18px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:18px}
+
+/* ---------- Plaques ---------- */
+.plate{
+  background:linear-gradient(180deg,var(--alu-hi),var(--alu) 45%,var(--alu-lo));
+  border-radius:22px;padding:18px;display:flex;flex-direction:column;gap:16px;position:relative;
+  box-shadow:inset 0 1px 0 #fff,inset 0 -1px 0 rgba(0,0,0,.12),0 2px 0 #a2a7aa,0 14px 28px rgba(40,46,50,.28);
+}
+.plate::before,.plate::after{content:"";position:absolute;top:10px;width:7px;height:7px;border-radius:50%;
+  background:radial-gradient(circle at 35% 35%,#fbfbfb,#9aa0a3 70%);box-shadow:inset 0 0 0 1px rgba(0,0,0,.18)}
+.plate::before{left:10px}.plate::after{right:10px}
+.engrave{font-size:.68rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);
+  text-shadow:0 1px 0 rgba(255,255,255,.8)}
+
+header.nameplate{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 4px 0}
+.brand{display:flex;align-items:center;gap:10px}
+.brand h1{margin:0;font-size:1.25rem;font-weight:800;letter-spacing:-.01em;text-shadow:0 1px 0 rgba(255,255,255,.9)}
+.brand small{display:block;font-size:.62rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-soft)}
+.who{text-align:right;font-size:.8rem;color:var(--ink-soft)}
+.who b{display:block;color:var(--ink);font-size:.9rem}
+.linkbtn{font:inherit;font-size:.75rem;color:var(--ink-soft);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline}
+
+/* ---------- LED ---------- */
+.led{width:9px;height:9px;border-radius:50%;flex:none;background:var(--led-off);
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.5),0 1px 0 rgba(255,255,255,.7)}
+.led.on{background:var(--teal);box-shadow:0 0 6px 1px var(--teal),0 0 14px rgba(41,227,196,.55),inset 0 -1px 1px rgba(0,0,0,.2)}
+.led.amber{background:var(--amber);box-shadow:0 0 6px 1px var(--amber),inset 0 -1px 1px rgba(0,0,0,.2)}
+.led.green{background:var(--green);box-shadow:0 0 6px 1px var(--green),inset 0 -1px 1px rgba(0,0,0,.2)}
+.led.red{background:var(--red);box-shadow:0 0 6px 1px var(--red),inset 0 -1px 1px rgba(0,0,0,.2)}
+
+/* ---------- Touches ---------- */
+.key{
+  font:inherit;font-weight:700;color:var(--ink);cursor:pointer;border:0;border-radius:14px;
+  background:linear-gradient(180deg,#f7f8f8,#dcdfe0 60%,#cfd3d4);
+  box-shadow:inset 0 1px 0 #fff,inset 0 -2px 3px rgba(0,0,0,.08),0 0 0 1px rgba(60,66,70,.35),0 3px 0 #8f9497,0 7px 12px rgba(30,36,40,.28);
+  transition:transform .08s,box-shadow .08s;
+}
+.key:active,.key.down{transform:translateY(3px);
+  box-shadow:inset 0 2px 4px rgba(0,0,0,.22),inset 0 -1px 0 rgba(255,255,255,.6),0 0 0 1px rgba(60,66,70,.4),0 0 0 #8f9497,0 2px 4px rgba(30,36,40,.2);
+  background:linear-gradient(180deg,#d6d9da,#e3e6e6)}
+.key:focus-visible{outline:2px solid var(--teal);outline-offset:3px}
+.key:disabled{opacity:.6;cursor:wait}
+
+.keygrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.taskkey{display:flex;align-items:center;gap:10px;padding:13px 12px;text-align:left;font-size:.88rem;min-height:56px}
+.taskkey .ic{font-size:1.05rem;width:22px;text-align:center;flex:none;filter:grayscale(.2)}
+.taskkey span.t{flex:1;min-width:0;line-height:1.15}
+.taskkey:last-child:nth-child(odd){grid-column:1/-1}
+
+.rec{display:flex;align-items:center;justify-content:center;gap:12px;padding:16px;font-size:1rem;color:#fff;letter-spacing:.02em;
+  background:linear-gradient(180deg,#ff6a5f,var(--red) 55%,#c4281f);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.55),inset 0 -2px 4px rgba(0,0,0,.2),0 0 0 1px #7d1712,0 4px 0 var(--red-lo),0 9px 16px rgba(120,20,15,.35);
+  text-shadow:0 -1px 0 rgba(0,0,0,.3)}
+.rec:active,.rec.down{background:linear-gradient(180deg,#d9322a,#e8463c);
+  box-shadow:inset 0 3px 6px rgba(0,0,0,.35),0 0 0 1px #7d1712,0 0 0 var(--red-lo),0 2px 4px rgba(120,20,15,.3)}
+.rec .dot{width:12px;height:12px;border-radius:50%;background:#fff;box-shadow:0 0 6px rgba(255,255,255,.9)}
+
+.round{width:48px;height:48px;border-radius:50%;padding:0;font-size:1.1rem;display:grid;place-items:center}
+
+/* ---------- Puits (champs) ---------- */
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.well,input.well,textarea.well,select.well{
+  font:inherit;font-size:16px;color:var(--ink);width:100%;border:0;border-radius:12px;padding:12px 13px;
+  background:linear-gradient(180deg,#bfc3c5,#d3d6d7 35%,#dadddd);
+  box-shadow:inset 0 2px 5px rgba(0,0,0,.28),inset 0 -1px 0 rgba(255,255,255,.7),0 1px 0 rgba(255,255,255,.85);
+}
+.well:focus{outline:none;box-shadow:inset 0 2px 5px rgba(0,0,0,.28),0 0 0 2px var(--teal),0 0 10px rgba(41,227,196,.45)}
+textarea.well{min-height:84px;resize:vertical}
+.row2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+
+/* ---------- Écran LCD ---------- */
+.lcd{background:linear-gradient(180deg,#141b1a,var(--lcd));border-radius:12px;padding:12px 14px;
+  font-family:var(--mono);color:var(--lcd-ink);text-shadow:0 0 6px rgba(63,242,208,.55);
+  box-shadow:inset 0 3px 8px rgba(0,0,0,.7),inset 0 0 0 1px rgba(255,255,255,.04),0 1px 0 rgba(255,255,255,.85),0 0 0 3px #a9aeb0}
+.lcd .big{font-size:1.9rem;line-height:1;letter-spacing:.04em;font-variant-numeric:tabular-nums}
+.lcd .sub{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:#7fbfb2;text-shadow:none}
+.lcd.dur{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
+.lcdrow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.lcdrow .lcd{text-align:center;padding:10px 6px}
+.lcdrow .big{font-size:1.25rem}
+
+/* ---------- Photo ---------- */
+.photo{display:flex;align-items:center;gap:12px}
+.photo img{width:60px;height:60px;object-fit:cover;border-radius:10px;box-shadow:0 0 0 2px #a9aeb0,inset 0 2px 4px rgba(0,0,0,.3)}
+.photo .key{flex:1;padding:13px;font-size:.88rem;text-align:center}
+
+/* ---------- Connexion ---------- */
+.who-keys{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.who-keys .key{display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px 6px;font-size:.88rem}
+.err{color:#9b1c14;font-weight:600;font-size:.85rem;margin:0;min-height:1.2em}
+
+/* ---------- Semaine ---------- */
+.weeknav{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.weeknav .lcd{flex:1;text-align:center;padding:9px 8px}
+.weeknav .lcd .big{font-size:1.05rem}
+.tablewrap{overflow-x:auto;border-radius:12px;background:linear-gradient(180deg,#c3c7c9,#d5d8d9);
+  box-shadow:inset 0 2px 5px rgba(0,0,0,.22),0 1px 0 rgba(255,255,255,.85)}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:.88rem}
+th,td{padding:9px 10px;text-align:left;border-bottom:1px solid rgba(0,0,0,.09);white-space:nowrap}
+tr:last-child td{border-bottom:0}
+th{font-size:.64rem;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft)}
+td.n,th.n{text-align:right}
+.day{margin-top:2px}
+.entry{border-radius:16px;padding:13px;display:flex;flex-direction:column;gap:9px;
+  background:linear-gradient(180deg,#eef0f0,#d9dcdd);
+  box-shadow:inset 0 1px 0 #fff,0 0 0 1px rgba(60,66,70,.22),0 3px 0 #a3a8ab,0 6px 10px rgba(30,36,40,.16)}
+.entry .top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.entry .h{font-family:var(--mono);font-size:1rem;font-variant-numeric:tabular-nums}
+.entry .task{font-weight:700;font-size:.9rem}
+.entry .obs{font-size:.88rem;white-space:pre-wrap;overflow-wrap:anywhere;color:#3b4144}
+.status{display:flex;align-items:center;gap:7px;font-size:.66rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft)}
+.acts{display:flex;gap:9px;flex-wrap:wrap}
+.acts .key,.acts a.key{font-size:.8rem;padding:8px 13px;border-radius:10px;text-decoration:none;display:inline-flex;align-items:center;gap:7px}
+.empty{text-align:center;color:var(--ink-soft);padding:18px 8px;font-size:.92rem}
+
+/* ---------- Barre de commutation ---------- */
+nav.deck{position:fixed;left:0;right:0;bottom:0;z-index:5;
+  padding:12px max(16px,env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0)) max(16px,env(safe-area-inset-left,0px));
+  background:linear-gradient(180deg,#d9dcdd,#babec0);
+  box-shadow:inset 0 1px 0 #fff,0 -1px 0 #9ca1a4,0 -8px 18px rgba(30,36,40,.18)}
+nav.deck .in{max-width:540px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+nav.deck .key{display:flex;align-items:center;justify-content:center;gap:10px;padding:13px;font-size:.9rem}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(104px + env(safe-area-inset-bottom,0));z-index:9;
+  max-width:88vw;font-family:var(--mono);font-size:.95rem;padding:10px 16px;border-radius:10px;
+  background:var(--lcd);color:var(--lcd-ink);text-shadow:0 0 6px rgba(63,242,208,.5);
+  box-shadow:0 0 0 3px #a9aeb0,0 10px 24px rgba(0,0,0,.35)}
+.confirm{display:flex;gap:9px;align-items:center;flex-wrap:wrap;font-size:.82rem;font-weight:600}
+.grille{display:flex;gap:4px;flex-wrap:wrap;width:26px;justify-content:center}
+.grille i{width:5px;height:5px;border-radius:50%;background:#7d8386;box-shadow:inset 0 1px 1px rgba(0,0,0,.5),0 1px 0 rgba(255,255,255,.6)}
+@media (prefers-reduced-motion:reduce){.key,.rec{transition:none}}
+</style>
+</head>
+<body>
+
+<!-- Connexion -->
+<div class="wrap" id="login" hidden>
+  <header class="nameplate">
+    <div class="brand"><span class="led on"></span><div><h1>Smart Time</h1><small>Smartdesignforyou</small></div></div>
+  </header>
+  <form class="plate" id="loginForm">
+    <div class="field">
+      <label class="engrave" for="lgCode">Votre code personnel</label>
+      <input class="well" id="lgCode" autocomplete="off" autocapitalize="characters" spellcheck="false" required>
+    </div>
+    <button class="key rec" id="lgBtn"><span class="dot"></span>Entrer</button>
+    <p class="err" id="lgErr" role="alert"></p>
+  </form>
+</div>
+
+<!-- Application -->
+<div class="wrap" id="app" hidden>
+  <header class="nameplate">
+    <div class="brand"><span class="led on"></span><div><h1>Smart Time</h1><small>Smartdesignforyou</small></div></div>
+    <div class="who"><b id="whoName"></b><button class="linkbtn" id="logout" type="button">Changer</button></div>
+  </header>
+
+  <!-- Saisie -->
+  <section id="tabSaisie">
+    <form class="plate" id="taskForm">
+      <div class="field" id="fNomWrap">
+        <label class="engrave" for="fNom">Personne</label>
+        <select class="well" id="fNom"></select>
+      </div>
+      <div class="engrave">Tâche</div>
+      <div class="keygrid" id="taskKeys" role="radiogroup" aria-label="Tâche"></div>
+
+      <div class="field"><label class="engrave" for="fDate">Date</label><input class="well" type="date" id="fDate" required></div>
+      <div class="row2">
+        <div class="field"><label class="engrave" for="fDebut">Début</label><input class="well" type="time" id="fDebut" required></div>
+        <div class="field"><label class="engrave" for="fFin">Fin</label><input class="well" type="time" id="fFin" required></div>
+      </div>
+      <div class="lcd dur" aria-live="polite">
+        <div><div class="sub">Durée</div><div class="big" id="fDuree">--:--</div></div>
+        <div class="sub" id="fDureeNote"></div>
+      </div>
+
+      <div class="field" id="photoWrap" hidden>
+        <span class="engrave">Capture de fin de live</span>
+        <div class="photo">
+          <img id="fPrev" alt="Aperçu de la capture" hidden>
+          <label class="key" for="fPhoto" id="fPick">Ajouter la capture</label>
+          <input type="file" id="fPhoto" accept="image/*" hidden>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="engrave" for="fObs">Observations</label>
+        <textarea class="well" id="fObs" maxlength="1000" placeholder="Ce qui a été fait, problème rencontré…"></textarea>
+      </div>
+      <button class="key rec" id="fBtn"><span class="dot"></span><span id="fBtnTxt">Enregistrer</span></button>
+    </form>
+  </section>
+
+  <!-- Semaine -->
+  <section id="tabSemaine" hidden>
+    <div class="plate">
+      <div class="weeknav">
+        <button class="key round" type="button" id="wPrev" aria-label="Semaine précédente">◀</button>
+        <div class="lcd"><div class="sub" id="wYear"></div><div class="big" id="wLbl"></div></div>
+        <button class="key round" type="button" id="wNext" aria-label="Semaine suivante">▶</button>
+      </div>
+      <div class="lcdrow" id="wTotals"></div>
+      <div id="wPeople" hidden>
+        <div class="engrave" style="margin-bottom:8px">Par personne</div>
+        <div class="tablewrap"><table id="wTable"></table></div>
+      </div>
+      <div>
+        <div class="engrave" style="margin-bottom:8px">Par tâche</div>
+        <div class="tablewrap"><table id="wTasks"></table></div>
+      </div>
+      <button class="key" type="button" id="wCopy" hidden style="padding:13px">Copier le récap (WhatsApp)</button>
+    </div>
+    <div id="wList" style="display:flex;flex-direction:column;gap:12px;margin-top:18px"></div>
+  </section>
+</div>
+
+<nav class="deck" id="deck" hidden>
+  <div class="in">
+    <button class="key down" type="button" data-tab="Saisie"><span class="led on"></span>Saisir</button>
+    <button class="key" type="button" data-tab="Semaine"><span class="led"></span><span id="tabWeekLbl">Ma semaine</span></button>
+  </div>
+</nav>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+// ===== CONFIG =====
+const API_URL = 'https://script.google.com/macros/s/AKfycbwQ7WJY9BBE9-ck4zvmsGolrLjAuCfpvBtAUWsjJ3BJTzc0NYh_ZoZYXhggCTvkqqRaTg/exec';
+// Personnes (même liste que dans Code.gs)
+const PERSONNES = ['Assif', 'Murielle'];
+// Tâches (mêmes identifiants que dans Code.gs)
+const TACHES = [
+  {id:'live',        ic:'●', label:'TikTok live'},
+  {id:'rangement',   ic:'▤', label:'Rangements'},
+  {id:'livraison',   ic:'▣', label:'Préparation livraison'},
+  {id:'rangprod',    ic:'▦', label:'Rangements produits'},
+  {id:'admin',       ic:'✎', label:'Tâches administratives'},
+  {id:'vente',       ic:'◈', label:'Vente physique'},
+  {id:'autre',       ic:'⋯', label:'Autres (vente, admin, gestion)'}
+];
+// ==================
+
+const $ = id => document.getElementById(id);
+const store = {
+  get(k){ try{ return JSON.parse(localStorage.getItem('hs_'+k)); }catch(e){ return null; } },
+  set(k,v){ try{ localStorage.setItem('hs_'+k, JSON.stringify(v)); }catch(e){} },
+  del(k){ try{ localStorage.removeItem('hs_'+k); }catch(e){} }
+};
+const S = { code:null, role:null, nom:'', week:null, data:[], image:null, confirmId:null, tache:'live' };
+const tLabel = id => (TACHES.find(t=>t.id===id)||{label:'TikTok live'}).label;
+
+/* ---------- Dates ---------- */
+const pad = n => String(n).padStart(2,'0');
+const iso = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const parse = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y,m-1,d); };
+function monday(d){ const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() - ((x.getDay()+6)%7)); return x; }
+const addDays = (d,n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+const fmtDay = s => parse(s).toLocaleDateString('fr-FR',{weekday:'long', day:'numeric', month:'long'});
+const fmtShort = d => d.toLocaleDateString('fr-FR',{day:'2-digit', month:'2-digit'});
+function toMin(h){ const m = /^(\d{1,2}):(\d{2})$/.exec(h||''); return m ? +m[1]*60 + +m[2] : null; }
+function dureeMin(a,b){ const d=toMin(a), f=toMin(b); if(d===null||f===null) return null; let x=f-d; if(x<=0) x+=1440; return x; }
+const hhmm = min => { min=Math.round(min||0); return `${Math.floor(min/60)}:${pad(min%60)}`; };
+function fmtH(min){ min=Math.round(min||0); const h=Math.floor(min/60), m=min%60; return h ? `${h} h ${pad(m)}` : `${m} min`; }
+
+/* ---------- API ---------- */
+async function api(action, payload={}){
+  if(!API_URL) return demo(action, payload);
+  if(action==='ping' || action==='list'){
+    const q = new URLSearchParams({action, code:S.code, ...payload});
+    const r = await fetch(API_URL+'?'+q); return r.json();
+  }
+  const r = await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({action, code:S.code, ...payload})});
+  return r.json();
+}
+function demo(action, p){
+  const rows = store.get('demo') || [];
+  const role = S.code === 'ADMIN' ? 'admin' : (S.code ? 'equipe' : null);
+  if(!role) return {ok:false, err:'Code incorrect.'};
+  if(action==='ping') return {ok:true, role, nom: role==='admin' ? '' : PERSONNES[0]};
+  if(action==='list'){
+    let d = rows.filter(r => r.date>=p.from && r.date<=p.to);
+    if(role==='equipe') d = d.filter(r => r.animateur===p.animateur);
+    return {ok:true, role, data:d.sort((a,b)=>(a.date+a.debut).localeCompare(b.date+b.debut))};
+  }
+  if(action==='add'){ rows.push({id:Math.random().toString(36).slice(2,10), animateur:p.animateur, tache:p.tache, date:p.date, debut:p.debut, fin:p.fin,
+      duree:dureeMin(p.debut,p.fin), obs:p.obs||'', capture:p.image?'demo':'', statut:'attente'}); store.set('demo', rows); return {ok:true}; }
+  if(action==='delete'){ store.set('demo', rows.filter(r=>r.id!==p.id)); return {ok:true}; }
+  if(action==='statut'){ const r=rows.find(r=>r.id===p.id); if(r) r.statut=p.statut; store.set('demo',rows); return {ok:true}; }
+}
+
+/* ---------- Utilitaires ---------- */
+let toastT;
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true, 2600); }
+function esc(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ---------- Connexion ---------- */
+$('loginForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  $('lgErr').textContent='';
+  S.code = $('lgCode').value.trim().toUpperCase();
+  $('lgBtn').disabled = true;
+  try{
+    const r = await api('ping');
+    if(!r.ok) throw new Error(r.err);
+    S.role = r.role; S.nom = r.nom || '';
+    store.set('session', {code:S.code, nom:S.nom, role:S.role});
+    start();
+  }catch(err){ $('lgErr').textContent = err.message || 'Connexion impossible. Vérifiez votre réseau.'; }
+  finally{ $('lgBtn').disabled=false; }
+});
+$('logout').addEventListener('click', ()=>{ store.del('session'); location.reload(); });
+
+function start(){
+  $('login').hidden = true; $('app').hidden = false; $('deck').hidden = false;
+  const admin = S.role==='admin';
+  $('whoName').textContent = admin ? 'Administrateur' : S.nom;
+  $('fNomWrap').hidden = !admin;
+  if(!admin) $('fNom').value = S.nom;
+  $('tabWeekLbl').textContent = admin ? 'Récap équipe' : 'Ma semaine';
+  $('wPeople').hidden = !admin; $('wCopy').hidden = !admin;
+  $('fDate').value = iso(new Date());
+  S.week = monday(new Date());
+  renderTaskKeys();
+}
+
+/* ---------- Onglets ---------- */
+document.querySelectorAll('nav.deck [data-tab]').forEach(b=>b.addEventListener('click', ()=>{
+  document.querySelectorAll('nav.deck [data-tab]').forEach(x=>{
+    const on = x===b; x.classList.toggle('down', on); x.querySelector('.led').classList.toggle('on', on);
+  });
+  $('tabSaisie').hidden = b.dataset.tab!=='Saisie';
+  $('tabSemaine').hidden = b.dataset.tab!=='Semaine';
+  if(b.dataset.tab==='Semaine') loadWeek();
+  window.scrollTo(0,0);
+}));
+
+/* ---------- Saisie ---------- */
+PERSONNES.forEach(n=>$('fNom').add(new Option(n,n)));
+function renderTaskKeys(){
+  $('taskKeys').innerHTML = TACHES.map(t=>{ const on = S.tache===t.id;
+    return `<button type="button" role="radio" aria-checked="${on}" class="key taskkey${on?' down':''}" data-t="${t.id}">
+      <span class="led${on?' on':''}"></span><span class="t">${esc(t.label)}</span></button>`; }).join('');
+  $('photoWrap').hidden = S.tache!=='live';
+}
+$('taskKeys').addEventListener('click', e=>{
+  const b = e.target.closest('[data-t]'); if(!b) return;
+  S.tache = b.dataset.t; renderTaskKeys();
+});
+
+function majDuree(){
+  const d = dureeMin($('fDebut').value, $('fFin').value);
+  const f = toMin($('fFin').value), dd = toMin($('fDebut').value);
+  $('fDuree').textContent = d===null ? '--:--' : hhmm(d);
+  $('fDureeNote').textContent = (d!==null && f<=dd) ? 'fin le lendemain' : (d!==null && d>720 ? '> 12 h ?' : '');
+}
+$('fDebut').addEventListener('input', majDuree); $('fFin').addEventListener('input', majDuree);
+
+$('fPhoto').addEventListener('change', async e=>{
+  const f = e.target.files[0]; if(!f) return;
+  try{ S.image = await compresser(f); $('fPrev').src = S.image; $('fPrev').hidden = false; $('fPick').textContent = 'Changer la capture'; }
+  catch(err){ toast('Image illisible, réessayez.'); }
+});
+function compresser(file){
+  return new Promise((res, rej)=>{
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = ()=>{
+      const max = 1400, k = Math.min(1, max/Math.max(img.width, img.height));
+      const c = document.createElement('canvas'); c.width = Math.round(img.width*k); c.height = Math.round(img.height*k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url); res(c.toDataURL('image/jpeg', 0.72));
+    };
+    img.onerror = rej; img.src = url;
+  });
+}
+
+$('taskForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const p = { animateur: S.role==='admin' ? $('fNom').value : S.nom, tache:S.tache, date:$('fDate').value,
+    debut:$('fDebut').value, fin:$('fFin').value, obs:$('fObs').value.trim(), image: S.tache==='live' ? S.image : null };
+  const d = dureeMin(p.debut, p.fin);
+  if(d>720){ toast('Plus de 12 h : vérifiez les heures.'); return; }
+  $('fBtn').disabled = true; $('fBtnTxt').textContent = 'Envoi…';
+  try{
+    const r = await api('add', p);
+    if(!r.ok) throw new Error(r.err);
+    toast(`Enregistré : ${tLabel(p.tache)} ${hhmm(d)}`);
+    $('fDebut').value=''; $('fFin').value=''; $('fObs').value=''; $('fPhoto').value='';
+    S.image=null; $('fPrev').hidden=true; $('fPick').textContent='Ajouter la capture'; majDuree();
+  }catch(err){ toast(err.message || 'Envoi impossible. Vérifiez votre réseau.'); }
+  finally{ $('fBtn').disabled=false; $('fBtnTxt').textContent='Enregistrer'; }
+});
+
+/* ---------- Semaine ---------- */
+$('wPrev').addEventListener('click', ()=>{ S.week = addDays(S.week,-7); loadWeek(); });
+$('wNext').addEventListener('click', ()=>{ S.week = addDays(S.week, 7); loadWeek(); });
+
+async function loadWeek(){
+  const from = iso(S.week), to = iso(addDays(S.week,6));
+  $('wYear').textContent = `Semaine · ${S.week.getFullYear()}`;
+  $('wLbl').textContent = `${fmtShort(S.week)} → ${fmtShort(addDays(S.week,6))}`;
+  $('wList').innerHTML = '<p class="empty">Chargement…</p>';
+  try{
+    const r = await api('list', {from, to, animateur:S.nom});
+    if(!r.ok) throw new Error(r.err);
+    S.data = r.data.map(x=>({...x, tache:x.tache||'live'})); renderWeek();
+  }catch(err){ $('wList').innerHTML = `<p class="empty">${esc(err.message || 'Données inaccessibles. Vérifiez votre réseau.')}</p>`; }
+}
+
+function renderWeek(){
+  const d = S.data, admin = S.role==='admin';
+  const sum = st => d.filter(x=>x.statut===st).reduce((a,x)=>a+x.duree,0);
+  $('wTotals').innerHTML =
+    `<div class="lcd"><div class="big">${hhmm(sum('valide'))}</div><div class="sub">Validées</div></div>
+     <div class="lcd"><div class="big">${hhmm(sum('attente'))}</div><div class="sub">En attente</div></div>
+     <div class="lcd"><div class="big">${d.filter(x=>x.statut!=='refuse').length}</div><div class="sub">Sessions</div></div>`;
+
+  // Par tâche (hors refusés)
+  const parT = {};
+  d.filter(x=>x.statut!=='refuse').forEach(x=>{ parT[x.tache] ??= {v:0,a:0}; parT[x.tache][x.statut==='valide'?'v':'a'] += x.duree; });
+  const tIds = TACHES.map(t=>t.id).filter(id=>parT[id]);
+  $('wTasks').innerHTML = tIds.length
+    ? `<thead><tr><th>Tâche</th><th class="n">Validé</th><th class="n">Attente</th></tr></thead><tbody>` +
+      tIds.map(id=>`<tr><td>${esc(tLabel(id))}</td><td class="n">${hhmm(parT[id].v)}</td><td class="n">${parT[id].a?hhmm(parT[id].a):'–'}</td></tr>`).join('') + '</tbody>'
+    : '<tbody><tr><td class="empty">Rien cette semaine.</td></tr></tbody>';
+
+  if(admin){
+    const par = {};
+    d.forEach(x=>{ const k=x.animateur; par[k] ??= {n:0, v:0, a:0, t:{}};
+      if(x.statut!=='refuse'){ par[k].n++; par[k].t[x.tache]=(par[k].t[x.tache]||0)+x.duree; }
+      if(x.statut==='valide') par[k].v+=x.duree; if(x.statut==='attente') par[k].a+=x.duree; });
+    const noms = Object.keys(par).sort((a,b)=>a.localeCompare(b,'fr'));
+    $('wTable').innerHTML = noms.length
+      ? `<thead><tr><th>Personne</th><th class="n">Sessions</th><th class="n">Validé</th><th class="n">Attente</th></tr></thead><tbody>` +
+        noms.map(n=>`<tr><td>${esc(n)}</td><td class="n">${par[n].n}</td><td class="n">${hhmm(par[n].v)}</td><td class="n">${par[n].a?hhmm(par[n].a):'–'}</td></tr>`).join('') + '</tbody>'
+      : '<tbody><tr><td class="empty">Rien cette semaine.</td></tr></tbody>';
+    S.recap = noms.map(n=>{
+      const det = TACHES.filter(t=>par[n].t[t.id]).map(t=>`   - ${t.label} : ${fmtH(par[n].t[t.id])}`).join('\n');
+      return `• ${n} : ${fmtH(par[n].v)} validées${par[n].a?` + ${fmtH(par[n].a)} en attente`:''}\n${det}`;
+    });
+  }
+
+  if(!d.length){ $('wList').innerHTML = `<p class="empty">Aucune saisie cette semaine.<br>Enregistrez depuis « Saisir ».</p>`; return; }
+  let html = '', jour = '';
+  d.forEach(x=>{
+    if(x.date!==jour){ jour = x.date; html += `<div class="engrave day">${esc(fmtDay(x.date))}</div>`; }
+    const st = {attente:['amber','En attente'], valide:['green','Validé'], refuse:['red','Refusé']}[x.statut] || ['','?'];
+    const cap = x.capture && x.capture!=='demo' ? `<a class="key" href="${esc(x.capture)}" target="_blank" rel="noopener">Voir la capture</a>` : '';
+    const sansCap = x.tache==='live' && !x.capture ? `<span class="status"><span class="led red"></span>Sans capture</span>` : '';
+    let acts = '';
+    if(admin){
+      if(x.statut!=='valide') acts += `<button class="key" data-act="valide" data-id="${x.id}"><span class="led green"></span>Valider</button>`;
+      if(x.statut!=='refuse') acts += `<button class="key" data-act="refuse" data-id="${x.id}"><span class="led red"></span>Refuser</button>`;
+      if(x.statut!=='attente') acts += `<button class="key" data-act="attente" data-id="${x.id}">En attente</button>`;
+    }
+    if(admin || x.statut==='attente') acts += S.confirmId===x.id
+      ? `<span class="confirm">Supprimer ? <button class="key" data-act="del" data-id="${x.id}"><span class="led red"></span>Oui</button><button class="key" data-act="nodel">Non</button></span>`
+      : `<button class="key" data-act="askdel" data-id="${x.id}">Supprimer</button>`;
+    html += `<article class="entry">
+      <div class="top"><span class="task">${admin?esc(x.animateur)+' · ':''}${esc(tLabel(x.tache))}</span>
+        <span class="status"><span class="led ${st[0]}"></span>${st[1]}</span></div>
+      <div class="top"><span class="h">${esc(x.debut)} → ${esc(x.fin)} · ${hhmm(x.duree)}</span>${sansCap}</div>
+      ${x.obs?`<div class="obs">${esc(x.obs)}</div>`:''}
+      ${(cap||acts)?`<div class="acts">${cap}${acts}</div>`:''}
+    </article>`;
+  });
+  $('wList').innerHTML = html;
+}
+
+$('wList').addEventListener('click', async e=>{
+  const b = e.target.closest('button[data-act]'); if(!b) return;
+  const act = b.dataset.act, id = b.dataset.id;
+  if(act==='askdel'){ S.confirmId=id; renderWeek(); return; }
+  if(act==='nodel'){ S.confirmId=null; renderWeek(); return; }
+  b.disabled = true;
+  try{
+    const r = act==='del' ? await api('delete', {id, animateur:S.nom}) : await api('statut', {id, statut:act});
+    if(!r.ok) throw new Error(r.err);
+    S.confirmId = null;
+    toast(act==='del' ? 'Supprimé' : act==='valide' ? 'Validé' : act==='refuse' ? 'Refusé' : 'Remis en attente');
+    loadWeek();
+  }catch(err){ toast(err.message || 'Action impossible. Vérifiez votre réseau.'); b.disabled=false; }
+});
+
+$('wCopy').addEventListener('click', async ()=>{
+  const txt = `Récap semaine du ${fmtShort(S.week)} au ${fmtShort(addDays(S.week,6))}\n` + (S.recap||[]).join('\n');
+  try{ await navigator.clipboard.writeText(txt); toast('Récap copié'); }
+  catch(e){ toast('Copie impossible sur cet appareil'); }
+});
+
+/* ---------- Démarrage ---------- */
+const sess = store.get('session');
+if(sess && sess.code){ Object.assign(S, sess); start(); } else { $('login').hidden = false; }
+</script>
+</body>
+</html>
